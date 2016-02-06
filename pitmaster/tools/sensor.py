@@ -34,6 +34,11 @@ GPIO.setup(SPIMISO, GPIO.IN)
 GPIO.setup(SPICLK, GPIO.OUT)
 GPIO.setup(SPICS, GPIO.OUT)
 
+resistor_size = 10000
+sth_coef_a = 0.000436925136556
+sth_coef_b = 0.000230203788274
+sth_coef_c = 0.000000060486575
+
 
 def _temp_raw(sensor=None):
     with open(sensor, "r") as file_reader:
@@ -138,9 +143,9 @@ def read_thermistor(clockpin=SPICLK, mosipin=SPIMOSI, misopin=SPIMISO, cspin=SPI
     GPIO.output(cspin, True)
 
     adcout >>= 1       # first bit is 'null' so drop it
-
-    return temps.resistance_to_temp(temps.convert_to_resistance(adcout))
-
+    resistance = temps.convert_to_resistance(adcout)
+    temp_c = temps.resistance_to_temp(resistance)
+    return temp_c
 
 
 if __name__ == "__main__":
