@@ -12,8 +12,26 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 from numbers import Number
+import math
 
 from pitmaster.exceptions import *
+
+
+def convert_to_resistance(reading=None):
+    r1 = (1023.0 / reading) - 1.0
+    resistance = resistor_size / r1
+    return resistance
+
+
+def resistance_to_temp(resistance=None):
+    if resistance is None:
+        raise MissingPropertyException("resistance can not be None!")
+    t = sth_coef_a
+    t += sth_coef_b * (math.log(resistance))
+    t += sth_coef_c * math.pow((math.log(resistance)), 3)
+    t = 1 / t
+    t -= 273.15
+    return t
 
 
 def from_c_to_f(temp=None):
@@ -29,4 +47,4 @@ def from_c_to_f(temp=None):
         raise InvalidPropertyException(
             "temp must be a valid number. Found: {}".format(type(temp))
         )
-    return (temp * 9/5) + 32.0
+    return (temp * 9 / 5) + 32.0
