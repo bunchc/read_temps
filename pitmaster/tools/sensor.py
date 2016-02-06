@@ -41,7 +41,7 @@ def _temp_raw(sensor=None):
     return lines
 
 
-def read_temp(sensor=None, offset=None):
+def read_temp(sensor=None, offset=None, probe_type=None):
     """
     Reads the temp sensor and returns its temp in C.
 
@@ -51,34 +51,59 @@ def read_temp(sensor=None, offset=None):
     """
     if sensor is None:
         raise MissingPropertyException("sensor must not be None!")
+    if probe_type is None:
+        raise MissingPropertyException("must specify probe type!")
     if offset is None:
         offset = 0
-    if not os.path.isfile(sensor):
-        raise SensorNotFoundException("Unable to locate: {}".format(sensor))
-    lines = _temp_raw(sensor)
-    while lines[0].strip()[-3] != 'Y':
-        time.sleep(0.2)
-        lines = _temp_raw()
-    temp_output = lines[1].find('t=')
-    if temp_output != -1:
-        temp_string = lines[1].strip()[temp_output + 2:]
-        temp_c = (float(temp_string) / 1000.0) + offset
+    if probe_type != "thermistor":
+        if not os.path.isfile(sensor):
+            raise SensorNotFoundException("Unable to locate: {}".format(sensor))
+        lines = _temp_raw(sensor)
+        while lines[0].strip()[-3] != 'Y':
+            time.sleep(0.2)
+            lines = _temp_raw()
+        temp_output = lines[1].find('t=')
+        if temp_output != -1:
+            temp_string = lines[1].strip()[temp_output + 2:]
+            temp_c = (float(temp_string) / 1000.0) + offset
+            return temp_c
+    else:
+        temp_c = read_thermistor(cspin=sensor)
         return temp_c
 
 
-def find_temp_sensors():
+def find_temp_sensors(probe_type=None):
     """
     Looks on system for temp sensors and returns all that it finds in a list
 
     :return list: List containing all sensors.
     """
-    # Hard coded for now while we work out the best way to handel this.
-    return [
-        {
-            "name": "Probe 1",
-            "location": "/sys/bus/w1/devices/3b-0000001921e8/w1_slave"
-        }
-    ]
+    if probe_type is None:
+        raise MissingPropertyException("probe type must be set!")
+
+    if probe_type == "thermistor":
+        return [
+            {
+                "name": "Probe 1",
+                "location": "0"
+            },
+            {
+                "name": "Probe 2",
+                "location": "1"
+            },
+            {
+                "name": "Probe 3",
+                "location": "2"
+            }
+        ]
+    else:
+        # Hard coded for now while we work out the best way to handel this.
+        return [
+            {
+                "name": "Probe 1",
+                "location": "/sys/bus/w1/devices/3b-0000001921e8/w1_slave"
+            }
+        ]
 
 
 def read_thermistor(clockpin=SPICLK, mosipin=SPIMOSI, misopin=SPIMISO, cspin=SPICS, adcnum=None, offset=None):
