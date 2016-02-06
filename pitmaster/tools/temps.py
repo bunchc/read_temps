@@ -18,12 +18,17 @@ from pitmaster.exceptions import *
 
 
 def convert_to_resistance(reading=None):
+    resistor_size = 10000
     r1 = (1023.0 / reading) - 1.0
     resistance = resistor_size / r1
     return resistance
 
 
 def resistance_to_temp(resistance=None):
+    sth_coef_a = 0.000436925136556
+    sth_coef_b = 0.000230203788274
+    sth_coef_c = 0.000000060486575
+
     if resistance is None:
         raise MissingPropertyException("resistance can not be None!")
     t = sth_coef_a
