@@ -16,24 +16,10 @@ import time
 import RPi.GPIO as GPIO
 
 from pitmaster.exceptions import *
-
-# For the thermistor:
-# change these as desired - they're the pins connected from the
-# SPI port on the ADC to the Cobbler
-SPICLK = 18
-SPIMISO = 23
-SPIMOSI = 24
-SPICS = 25
+from pitmaster.tools import temps
 
 GPIO.setmode(GPIO.BCM)
 DEBUG = 1
-
-# set up the SPI interface pins
-GPIO.setup(SPIMOSI, GPIO.OUT)
-GPIO.setup(SPIMISO, GPIO.IN)
-GPIO.setup(SPICLK, GPIO.OUT)
-GPIO.setup(SPICS, GPIO.OUT)
-
 
 def _temp_raw(sensor=None):
     with open(sensor, "r") as file_reader:
@@ -68,7 +54,7 @@ def read_temp(sensor=None, offset=None, probe_type=None):
             temp_c = (float(temp_string) / 1000.0) + offset
             return temp_c
     else:
-        temp_c = read_thermistor(cspin=sensor)
+        temp_c = read_thermistor(adcnum=sensor)
         return temp_c
 
 
@@ -106,7 +92,18 @@ def find_temp_sensors(probe_type=None):
         ]
 
 
-def read_thermistor(clockpin=SPICLK, mosipin=SPIMOSI, misopin=SPIMISO, cspin=SPICS, adcnum=None, offset=None):
+def read_thermistor(adcnum=None, offset=None):
+    clockpin = 18
+    mosipin = 24
+    misopin = 23
+    cspin = 25
+
+    # set up the SPI interface pins
+    GPIO.setup(mosipin, GPIO.OUT)
+    GPIO.setup(misopin, GPIO.IN)
+    GPIO.setup(clockpin, GPIO.OUT)
+    GPIO.setup(cspin, GPIO.OUT)
+
     if ((adcnum > 7) or (adcnum < 0)):
             return -1
 
