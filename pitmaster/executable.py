@@ -55,6 +55,20 @@ def _setup_arg_parser():
         action='store_true',
         help="Enable the LCD display or not. It is disabled by default."
     )
+    parser.add_argument(
+        "-l",
+        "--localdisplay",
+        action='store_true',
+        help="Enable console output or not. It is disabled by default."
+    )
+    parser.add_argument(
+        "-p",
+        "--probetype",
+        required=True,
+        action='store',
+        help="Configure which type of probes to use."
+             "This is either thermistor or thermocouple"
+    )
     return parser
 
 
@@ -69,7 +83,12 @@ def execute():
     cook_name = provided_args.cookname
     output_file = provided_args.output
     use_lcd = provided_args.tft
-    sensors = sensor.find_temp_sensors()
+    probe_type = provided_args.probetype
+    local_display = provided_args.localdisplay
+    if str(probe_type).lower == "thermistor":
+        sensors = range(0, 2)
+    else:
+        sensors = sensor.find_temp_sensors()
     data_obj = DBObject(filename=output_file)
     if use_lcd:
         display = LocalDisplay()
@@ -77,7 +96,11 @@ def execute():
     try:
         while True:
             for sen in sensors:
-                temp_c = sensor.read_temp(sen["location"])
+                if probe_type == "thermistor":
+                    temp_c = sensor.read_thermistor(adcnum=sen)
+                else:
+                    temp_c = sensor.read_temp(sen["location"])
+
                 temp_f = temps.from_c_to_f(temp=temp_c)
                 info = {
                     "date": time.time(),
@@ -87,6 +110,8 @@ def execute():
                     "cook_name": cook_name
                 }
                 data_obj.save(info=info)
+                if local_display:
+                    print info
                 if use_lcd:
                     display.check_events()
                     display.set_display_msg("{}: {}f".format(
