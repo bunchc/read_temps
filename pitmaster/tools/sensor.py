@@ -25,6 +25,9 @@ SPIMISO = 23
 SPIMOSI = 24
 SPICS = 25
 
+GPIO.setmode(GPIO.BCM)
+DEBUG = 1
+
 # set up the SPI interface pins
 GPIO.setup(SPIMOSI, GPIO.OUT)
 GPIO.setup(SPIMISO, GPIO.IN)
@@ -78,7 +81,7 @@ def find_temp_sensors():
     ]
 
 
-def read_thermistor(adcnum=None, offset=none, clockpin, mosipin, misopin, cspin):
+def read_thermistor(clockpin=SPICLK, mosipin=SPIMOSI, misopin=SPIMISO, cspin=SPICS, adcnum=None, offset=None):
     if ((adcnum > 7) or (adcnum < 0)):
             return -1
 
