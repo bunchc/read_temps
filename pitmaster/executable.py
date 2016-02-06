@@ -85,10 +85,7 @@ def execute():
     use_lcd = provided_args.tft
     probe_type = provided_args.probetype
     local_display = provided_args.localdisplay
-    if str(probe_type).lower == "thermistor":
-        sensors = range(0, 2)
-    else:
-        sensors = sensor.find_temp_sensors()
+    sensors = sensor.find_temp_sensors(probe_type)
     data_obj = DBObject(filename=output_file)
     if use_lcd:
         display = LocalDisplay()
@@ -96,11 +93,7 @@ def execute():
     try:
         while True:
             for sen in sensors:
-                if probe_type == "thermistor":
-                    temp_c = sensor.read_thermistor(adcnum=sen)
-                else:
-                    temp_c = sensor.read_temp(sen["location"])
-
+                temp_c = sensor.read_temp(sen["location"], probe_type=probe_type)
                 temp_f = temps.from_c_to_f(temp=temp_c)
                 info = {
                     "date": time.time(),
