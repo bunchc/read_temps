@@ -13,18 +13,89 @@
 #   limitations under the License.
 import os
 import time
+import math
 import RPi.GPIO as GPIO
 
 from pitmaster.exceptions import *
-from pitmaster.tools import temps
+
+SPICLK = 18
+SPIMOSI = 24
+SPIMISO = 23
+SPICS = 25
 
 GPIO.setmode(GPIO.BCM)
 DEBUG = 1
+# set up the SPI interface pins
+GPIO.setup(SPIMOSI, GPIO.OUT)
+GPIO.setup(SPIMISO, GPIO.IN)
+GPIO.setup(SPICLK, GPIO.OUT)
+GPIO.setup(SPICS, GPIO.OUT)
+
 
 def _temp_raw(sensor=None):
     with open(sensor, "r") as file_reader:
         lines = file_reader.readlines()
     return lines
+
+
+def _read_thermistor(sensor=None):
+    adcnum = int(sensor)
+    clockpin = SPICLK
+    mosipin = SPIMOSI
+    misopin = SPIMISO
+    cspin = SPICS
+
+    if ((adcnum > 7) or (adcnum < 0)):
+        raise SensorNotFoundException("Invalid Thermisor Location: {}".format(sensor))
+
+    GPIO.output(cspin, True)
+    GPIO.output(clockpin, False)  # start clock low
+    GPIO.output(cspin, False)     # bring CS low
+
+    commandout = adcnum
+    commandout |= 0x18  # start bit + single-ended bit
+    commandout <<= 3    # we only need to send 5 bits here
+
+    for i in range(5):
+            if (commandout & 0x80):
+                    GPIO.output(mosipin, True)
+            else:
+                    GPIO.output(mosipin, False)
+            commandout <<= 1
+            GPIO.output(clockpin, True)
+            GPIO.output(clockpin, False)
+
+    adcout = 0
+    # read in one empty bit, one null bit and 10 ADC bits
+    for i in range(12):
+            GPIO.output(clockpin, True)
+            GPIO.output(clockpin, False)
+            adcout <<= 1
+            if (GPIO.input(misopin)):
+                    adcout |= 0x1
+
+    GPIO.output(cspin, True)
+
+    adcout >>= 1       # first bit is 'null' so drop it
+    resistor_size = 10000
+    r1 = (1023.0 / adcout) - 1.0
+    if r1 > 0:
+        resistance = resistor_size / r1
+    else:
+        return -1
+
+    sth_coef_a = 0.000436925136556
+    sth_coef_b = 0.000230203788274
+    sth_coef_c = 0.000000060486575
+
+    if resistance is None:
+        raise MissingPropertyException("resistance can not be None!")
+    t = sth_coef_a
+    t += sth_coef_b * (math.log(resistance))
+    t += sth_coef_c * math.pow((math.log(resistance)), 3)
+    t = 1 / t
+    t -= 273.15
+    return t
 
 
 def read_temp(sensor=None, offset=None, probe_type=None):
@@ -54,7 +125,7 @@ def read_temp(sensor=None, offset=None, probe_type=None):
             temp_c = (float(temp_string) / 1000.0) + offset
             return temp_c
     else:
-        temp_c = read_thermistor(adcnum=sensor)
+        temp_c = _read_thermistor(sensor) + offset
         return temp_c
 
 
@@ -90,54 +161,6 @@ def find_temp_sensors(probe_type=None):
                 "location": "/sys/bus/w1/devices/3b-0000001921e8/w1_slave"
             }
         ]
-
-
-def read_thermistor(adcnum=None, offset=None):
-    clockpin = 18
-    mosipin = 24
-    misopin = 23
-    cspin = 25
-
-    # set up the SPI interface pins
-    GPIO.setup(mosipin, GPIO.OUT)
-    GPIO.setup(misopin, GPIO.IN)
-    GPIO.setup(clockpin, GPIO.OUT)
-    GPIO.setup(cspin, GPIO.OUT)
-
-    if ((adcnum > 7) or (adcnum < 0)):
-            return -1
-
-    GPIO.output(cspin, True)
-    GPIO.output(clockpin, False)  # start clock low
-    GPIO.output(cspin, False)     # bring CS low
-
-    commandout = adcnum
-    commandout |= 0x18  # start bit + single-ended bit
-    commandout <<= 3    # we only need to send 5 bits here
-    for i in range(5):
-            if (commandout & 0x80):
-                    GPIO.output(mosipin, True)
-            else:
-                    GPIO.output(mosipin, False)
-            commandout <<= 1
-            GPIO.output(clockpin, True)
-            GPIO.output(clockpin, False)
-
-    adcout = 0
-    # read in one empty bit, one null bit and 10 ADC bits
-    for i in range(12):
-            GPIO.output(clockpin, True)
-            GPIO.output(clockpin, False)
-            adcout <<= 1
-            if (GPIO.input(misopin)):
-                    adcout |= 0x1
-
-    GPIO.output(cspin, True)
-
-    adcout >>= 1       # first bit is 'null' so drop it
-    resistance = temps.convert_to_resistance(adcout)
-    temp_c = temps.resistance_to_temp(resistance)
-    return temp_c
 
 
 if __name__ == "__main__":
